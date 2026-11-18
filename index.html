@@ -159,6 +159,7 @@ details textarea{min-height:96px;margin-top:6px;font-size:14px}
     <textarea id="paste" placeholder="client: Ralph
 phone: 03 465 463
 location: Batroun
+event date: 20/12/2026
 Stage 12x6 + white cover 1000$
 Runway 20x3 + white cover 1000$
 Carpet for all the venue 1200$
@@ -170,7 +171,7 @@ term: Overtime after midnight: $100 per hour"></textarea>
       <button class="btn" id="readBtn">Read items</button>
       <button class="btn sec" id="clearBtn" style="flex:0 0 auto">Clear</button>
     </div>
-    <p class="hint">One item per line, price anywhere on the line: <code>1000$</code>, <code>$1000</code> or just <code>1000</code>. Write <code>free</code> for free items, and <code>if needed</code> or <code>optional</code> for extras. Optional lines: <code>client:</code>, <code>phone:</code>, <code>location:</code>, <code>title:</code>, <code>days:</code>, <code>note:</code>, <code>term:</code>, <code>included:</code> (one per line, for this quotation only). <code>notes: 6</code> fills the setup hours, <code>terms: 10</code> fills the cancellation days.</p>
+    <p class="hint">One item per line, price anywhere on the line: <code>1000$</code>, <code>$1000</code> or just <code>1000</code>. Write <code>free</code> for free items, and <code>if needed</code> or <code>optional</code> for extras. Optional lines: <code>client:</code>, <code>phone:</code>, <code>location:</code>, <code>event date:</code>, <code>title:</code>, <code>days:</code>, <code>note:</code>, <code>term:</code>, <code>included:</code> (one per line, for this quotation only). <code>notes: 6</code> fills the setup hours, <code>terms: 10</code> fills the cancellation days.</p>
   </div>
 
   <div class="card">
@@ -181,6 +182,7 @@ term: Overtime after midnight: $100 per hour"></textarea>
       <div><label class="f">Quotation #</label><input id="qno"></div>
       <div><label class="f">Date</label><input id="qdate" type="date"></div>
       <div class="full"><label class="f">Location</label><input id="loc" placeholder="Venue / location"></div>
+      <div class="full"><label class="f">Event date</label><input id="edate" placeholder="e.g. Saturday 20 December 2026"></div>
       <div class="full"><label class="f">Title</label><input id="qtitle" placeholder="Stage – Runway – Carpet"></div>
     </div>
   </div>
@@ -244,7 +246,7 @@ function parseMessage(text){
     // strip WhatsApp copy prefix "[17/11/26, 07:17] Name: "
     line=line.replace(/^\[[^\]]{4,30}\]\s*[^:]{1,40}:\s*/,'');
     if(block&&(/(\$\s*\d[\d,]*(\.\d+)?|\d[\d,]*(\.\d+)?\s*(\$|usd|dollars?))\s*$/i.test(line)||/\bfree\s*$/i.test(line)))block=null;
-    if(block&&!/^(client|bill\s*to|name|customer|phone|tel|mobile|number|title|event|days?|location|venue|place|address|setup|cancel\w*|notes?|terms?|included|includes?|inclusions?)\s*[:=-]/i.test(line)){
+    if(block&&!/^(client|bill\s*to|name|customer|phone|tel|mobile|number|title|event|date|days?|location|venue|place|address|setup|cancel\w*|notes?|terms?|included|includes?|inclusions?)\s*[:=-]/i.test(line)){
       if(block==='notes'&&/^\d+(\.\d+)?\s*(h|hrs?|hours?)?$/i.test(line))out.meta.setupHours=line.match(/\d+(\.\d+)?/)[0];
       else if(block==='terms'&&/^\d+\s*(d|days?)?$/i.test(line))out.meta.cancelDays=line.match(/\d+/)[0];
       else (out.meta[block]=out.meta[block]||[]).push(line);
@@ -260,10 +262,11 @@ function parseMessage(text){
       if(n)out.meta.cancelDays=n[1];else(out.meta.terms=out.meta.terms||[]).push(v);continue}
     const im=line.match(/^(includes?|included(?:\s+in\s+(?:this\s+)?(?:quotation|quote))?|inclusions?)\s*[:=-]\s*(.+)$/i);
     if(im){(out.meta.included=out.meta.included||[]).push(im[2].trim());continue}
-    const meta=line.match(/^(client|bill\s*to|name|customer|phone|tel|mobile|number|title|event|days?|quotation|quote|q#|date|location|venue|place|address)\s*[:=-]\s*(.+)$/i);
+    const meta=line.match(/^(client|bill\s*to|name|customer|phone|tel|mobile|number|(?:event|wedding|party)\s*date|date\s*of\s*(?:the\s*)?event|date|title|event|days?|quotation|quote|q#|location|venue|place|address)\s*[:=-]\s*(.+)$/i);
     if(meta){const k=meta[1].toLowerCase().replace(/\s/g,''),v=meta[2].trim();
       if(/client|billto|name|customer/.test(k))out.meta.client=v;
       else if(/phone|tel|mobile|number/.test(k))out.meta.phone=v;
+      else if(/date/.test(k))out.meta.eventDate=v;
       else if(/location|venue|place|address/.test(k))out.meta.location=v;
       else if(/title|event/.test(k))out.meta.title=v;
       else if(/day/.test(k))out.meta.days=parseFloat(v)||1;
@@ -354,8 +357,8 @@ function sums(){let base=0,opt=0;items.forEach(it=>{const a=it.free?0:(+it.amoun
 function totals(){const s=sums();$('total').textContent=money(s.base);$('optRow').style.display=s.opt?'flex':'none';$('totalOpt').textContent=money(s.all)}
 const STOP=/^(right|left|back|front|and|for|the|all|a|an|of|with|on|in|to|at|by|both|full|big|small|new|extra|\d.*|\W*)$/i;
 function autoTitle(){const words=items.filter(i=>!i.free).slice(0,5).map(i=>i.desc.split(/[\s–\-,(+:]+/).find(w=>w&&!STOP.test(w))).filter(Boolean);return [...new Set(words.map(cap))].join(' – ')}
-function save(){store.set('draft',{items,client:$('client').value,phone:$('phone').value,qno:$('qno').value,qdate:$('qdate').value,qtitle:$('qtitle').value,loc:$('loc').value,paste:$('paste').value})}
-['client','phone','qno','qdate','qtitle','loc','paste'].forEach(id=>$(id).addEventListener('input',save));
+function save(){store.set('draft',{items,client:$('client').value,phone:$('phone').value,qno:$('qno').value,qdate:$('qdate').value,qtitle:$('qtitle').value,loc:$('loc').value,edate:$('edate').value,paste:$('paste').value})}
+['client','phone','qno','qdate','qtitle','loc','edate','paste'].forEach(id=>$(id).addEventListener('input',save));
 ['included','notes','terms'].forEach(id=>{$(id).value=store.get(id,DEF[id]);$(id).addEventListener('input',()=>store.set(id,$(id).value))});
 
 function nextQno(){const n=store.get('counter',20074);return String(n)}
@@ -367,6 +370,7 @@ $('readBtn').onclick=()=>{
   if(r.meta.client)$('client').value=r.meta.client;
   if(r.meta.phone)$('phone').value=r.meta.phone;
   if(r.meta.location)$('loc').value=r.meta.location;
+  if(r.meta.eventDate)$('edate').value=r.meta.eventDate;
   if(r.meta.qno)$('qno').value=r.meta.qno;
   $('qtitle').value=r.meta.title||autoTitle();
   const baseNotes=store.get('notes',DEF.notes);
@@ -381,7 +385,7 @@ $('readBtn').onclick=()=>{
   toast(`Found ${items.length} item${items.length!==1?'s':''} — check them below`);
   $('items').scrollIntoView({behavior:'smooth',block:'start'});
 };
-$('clearBtn').onclick=()=>{$('notes').value=store.get('notes',DEF.notes);$('terms').value=store.get('terms',DEF.terms);$('included').value=store.get('included',DEF.included);$('paste').value='';items=[];$('client').value='';$('phone').value='';$('loc').value='';$('qtitle').value='';$('qno').value=nextQno();$('qdate').value=todayISO();render();save()};
+$('clearBtn').onclick=()=>{$('notes').value=store.get('notes',DEF.notes);$('terms').value=store.get('terms',DEF.terms);$('included').value=store.get('included',DEF.included);$('paste').value='';items=[];$('client').value='';$('phone').value='';$('loc').value='';$('edate').value='';$('qtitle').value='';$('qno').value=nextQno();$('qdate').value=todayISO();render();save()};
 $('addBtn').onclick=()=>{items.push({desc:'',days:1,qty:1,amount:0,free:false,optional:false});render();save();const t=$('items').querySelectorAll('textarea');t[t.length-1].focus()};
 
 /* ---------- PDF ---------- */
@@ -400,14 +404,17 @@ function buildPDF(){
     doc.setFontSize(11);doc.text('APM EVENTS',L,96);
     doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(40);
     ['Naher Ibrahim, Lebanon','961 81 134 233','info.apmevents@gmail.com','Christopher Daccache'].forEach((t,i)=>doc.text(t,L,122+i*12));
-    const kx=R-170,vx=R-95;
+    const kx=R-195,vx=R-118;
     const rows=[['DATE:',fmtDate($('qdate').value)],['QUOTATION #',$('qno').value],['BILL TO:',$('client').value||'—']];
     rows.forEach((r,i)=>{doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...RED);doc.text(r[0],kx,124+i*15);
       doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(17);doc.text(String(r[1]),vx,124+i*15)});
     let ry=124+3*15;
     if($('phone').value){doc.text($('phone').value,vx,ry);ry+=15}
     if($('loc').value){doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...RED);doc.text('LOCATION:',kx,ry);
-      doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(17);doc.text(doc.splitTextToSize($('loc').value,R-vx),vx,ry)}
+      doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(17);const ll=doc.splitTextToSize($('loc').value,R-vx);doc.text(ll,vx,ry);ry+=ll.length*10+5}
+    if($('edate').value){doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...RED);doc.text('EVENT DATE:',kx,ry);
+      doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(17);const el=doc.splitTextToSize($('edate').value,R-vx);doc.text(el,vx,ry);ry+=el.length*10+5}
+    return ry;
   }
   function tableHead(){
     doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(17);
@@ -415,8 +422,8 @@ function buildPDF(){
     doc.setDrawColor(17);doc.setLineWidth(.8);doc.line(L,y+6,R,y+6);y+=22;
   }
   function newPage(){doc.addPage();y=60;}
-  header();
-  y=200;
+  const hy=header();
+  y=Math.max(200,hy+28);
   doc.setFont('helvetica','normal');doc.setFontSize(12.5);doc.setTextColor(17);
   const title=$('qtitle').value||autoTitle();
   doc.text(doc.splitTextToSize(title,R-L),L,y);y+=24;
@@ -507,7 +514,7 @@ $('previewBtn').onclick=async()=>{
   const s=sums();
   pv.innerHTML=`<div style="font-size:13px;line-height:1.5">
    <div style="display:flex;justify-content:space-between;align-items:flex-start"><div><b style="font-size:20px">Quotation</b><br><b>APM EVENTS</b></div><img src="${LOGO}" style="width:90px;border:0;margin:0"></div>
-   <div style="margin:8px 0;color:#444">${fmtDate($('qdate').value)} · #${esc($('qno').value)} · Bill to: <b>${esc($('client').value||'—')}</b> ${esc($('phone').value)}${$('loc').value?' · '+esc($('loc').value):''}</div>
+   <div style="margin:8px 0;color:#444">${fmtDate($('qdate').value)} · #${esc($('qno').value)} · Bill to: <b>${esc($('client').value||'—')}</b> ${esc($('phone').value)}${$('loc').value?' · '+esc($('loc').value):''}${$('edate').value?' · Event: '+esc($('edate').value):''}</div>
    <div style="font-size:15px;margin:10px 0 6px">${esc($('qtitle').value||autoTitle())}</div>
    <table style="width:100%;border-collapse:collapse;font-size:12.5px">${items.map(it=>`<tr style="border-bottom:1px solid #eee"><td style="padding:6px 0">${esc(it.desc)}${it.optional?' <span style="color:#c00000;font-size:10px;font-weight:700">OPTIONAL</span>':''}</td><td style="text-align:center;color:#888">${it.days}×${it.qty}</td><td style="text-align:right;white-space:nowrap">${it.free?'<b>FREE</b>':money(it.amount)}</td></tr>`).join('')}</table>
    <div class="totals"><span>TOTAL</span><span>${money(s.base)}</span></div>${s.opt?`<div class="totals sub"><span>With optional items</span><span>${money(s.all)}</span></div>`:''}
@@ -520,7 +527,7 @@ $('modal').onclick=e=>{if(e.target.id==='modal')$('modal').classList.remove('sho
 (function init(){
   const d=store.get('draft',null);
   $('qdate').value=todayISO();$('qno').value=nextQno();
-  if(d){items=d.items||[];['client','phone','qtitle','loc','paste'].forEach(k=>{if(d[k])$(k).value=d[k]});if(d.qno)$('qno').value=d.qno;if(d.qdate)$('qdate').value=d.qdate}
+  if(d){items=d.items||[];['client','phone','qtitle','loc','edate','paste'].forEach(k=>{if(d[k])$(k).value=d[k]});if(d.qno)$('qno').value=d.qno;if(d.qdate)$('qdate').value=d.qdate}
   render();
 })();
 </script>
